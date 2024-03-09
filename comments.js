@@ -1,35 +1,57 @@
 //create web server
-var express = require('express');
-var app = express();
-var bodyParser = require('body-parser');
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+var http = require('http');
+var url = require('url');
+var fs = require('fs');
+var path = require('path');
+var comments = require('./comments');
+var mime = require('mime');
 
-var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost:27017/mean-demo', { useNewUrlParser: true });
-
-var Comment = mongoose.model('Comment', {
-  title: String,
-  content: String,
-  date: Date
+var server = http.createServer(function(request, response){
+    var urlObj = url.parse(request.url, true);
+    var pathname = urlObj.pathname;
+    //console.log(pathname);
+    if(pathname == '/'){
+        pathname = '/index.html';
+    }
+    if(pathname == '/index.html'){
+        fs.readFile('./index.html', 'utf8', function(err, data){
+            if(err){
+                console.log(err);
+                response.end('404');
+            }else{
+                response.end(data);
+            }
+        });
+    }else if(pathname == '/comments'){
+        var data = comments.get();
+        response.end(data);
+    }else{
+        fs.readFile('.' + pathname, function(err, data){
+            if(err){
+                response.end('404');
+            }else{
+                response.setHeader('content-type', mime.lookup(pathname));
+                response.end(data);
+            }
+        });
+    }
 });
-
-app.get('/api/comments', function (req, res) {
-  Comment.find(function (err, comments) {
-    if (err) return console.error(err);
-    res.json(comments);
-  });
+server.listen(8080, function(){
+    console.log('listening on 8080');
 });
-
-app.post('/api/comments', function (req, res) {
-  var comment = new Comment(req.body);
-  comment.save(function (err, comment) {
-    if (err) return console.error(err);
-    res.json(comment);
-  });
-});
-
-app.listen(3000, function () {
-  console.log('Server is running on http://localhost:3000');
-});
-
+// Path: comments.js
+var fs = require('fs');
+var path = './data.json';
+function get(){
+    var data = fs.readFileSync(path, 'utf8');
+    return data;
+}
+function add(comment){
+    var data = JSON.parse(fs.readFileSync(path, 'utf8'));
+    data.push(comment);
+    fs.writeFileSync(path, JSON.stringify(data));
+}
+module.exports = {
+    get: get,
+    add: add
+};
