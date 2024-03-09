@@ -1,57 +1,34 @@
 //create web server
-var http = require('http');
-var url = require('url');
+//npm install express
+var express = require('express');
+var app = express();
 var fs = require('fs');
+var bodyParser = require('body-parser');
 var path = require('path');
-var comments = require('./comments');
-var mime = require('mime');
+//npm install body-parser
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: true}));
+//npm install path
+app.use(express.static(path.join(__dirname, 'public')));
 
-var server = http.createServer(function(request, response){
-    var urlObj = url.parse(request.url, true);
-    var pathname = urlObj.pathname;
-    //console.log(pathname);
-    if(pathname == '/'){
-        pathname = '/index.html';
-    }
-    if(pathname == '/index.html'){
-        fs.readFile('./index.html', 'utf8', function(err, data){
-            if(err){
-                console.log(err);
-                response.end('404');
-            }else{
-                response.end(data);
-            }
-        });
-    }else if(pathname == '/comments'){
-        var data = comments.get();
-        response.end(data);
-    }else{
-        fs.readFile('.' + pathname, function(err, data){
-            if(err){
-                response.end('404');
-            }else{
-                response.setHeader('content-type', mime.lookup(pathname));
-                response.end(data);
-            }
-        });
-    }
+app.get('/comments', function(req, res) {
+	fs.readFile('comments.json', function(err, data) {
+		res.setHeader('Content-Type', 'application/json');
+		res.send(data);
+	});
 });
-server.listen(8080, function(){
-    console.log('listening on 8080');
+
+app.post('/comments', function(req, res) {
+	fs.readFile('comments.json', function(err, data) {
+		var comments = JSON.parse(data);
+		comments.push(req.body);
+		fs.writeFile('comments.json', JSON.stringify(comments, null, 4), function(err) {
+			res.setHeader('Content-Type', 'application/json');
+			res.send(JSON.stringify(comments));
+		});
+	});
 });
-// Path: comments.js
-var fs = require('fs');
-var path = './data.json';
-function get(){
-    var data = fs.readFileSync(path, 'utf8');
-    return data;
-}
-function add(comment){
-    var data = JSON.parse(fs.readFileSync(path, 'utf8'));
-    data.push(comment);
-    fs.writeFileSync(path, JSON.stringify(data));
-}
-module.exports = {
-    get: get,
-    add: add
-};
+
+app.listen(3000, function() {
+	console.log('Server is running on port 3000');
+});
